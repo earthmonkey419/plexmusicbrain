@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plex Music Brain — The Collection</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            margin-top: 1.5rem;
+        }
+        .stat-card {
+            background: #eeeae0;
+            border: 1px solid #c9b99a;
+            border-radius: 4px;
+            padding: 1.25rem;
+        }
+        .stat-card.wide { grid-column: span 2; }
+        .stat-card h3 {
+            font-family: "Playfair Display", serif;
+            color: #2c1810;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #c9b99a;
+            padding-bottom: 0.5rem;
+        }
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .hero-stat {
+            background: #2c1810;
+            color: #f5f0e8;
+            border-radius: 4px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+        .hero-stat .number {
+            font-family: "Playfair Display", serif;
+            font-size: 2rem;
+            color: #e2b96f;
+            display: block;
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+        .hero-stat .label {
+            font-size: 0.75rem;
+            color: #c9b99a;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        canvas { max-height: 280px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="/">← Back to the Stacks</a>
+        </div>
+        <h1 class="page-title">📊 The Collection</h1>
+        <p class="page-subtitle">Your library and listening history at a glance.</p>
+
+        <div class="hero-stats" id="hero-stats">
+            <div class="hero-stat"><span class="number" id="stat-tracks">—</span><span class="label">Tracks</span></div>
+            <div class="hero-stat"><span class="number" id="stat-artists">—</span><span class="label">Artists</span></div>
+            <div class="hero-stat"><span class="number" id="stat-scrobbles">—</span><span class="label">Scrobbles</span></div>
+            <div class="hero-stat"><span class="number" id="stat-instrumental">—</span><span class="label">Instrumentals</span></div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card wide">
+                <h3>🎵 Listening History by Year</h3>
+                <canvas id="chart-years"></canvas>
+            </div>
+            <div class="stat-card">
+                <h3>🎤 Top 10 Artists</h3>
+                <canvas id="chart-artists"></canvas>
+            </div>
+            <div class="stat-card">
+                <h3>🏷️ Top Genres</h3>
+                <canvas id="chart-genres"></canvas>
+            </div>
+            <div class="stat-card">
+                <h3>📅 Library by Era</h3>
+                <canvas id="chart-era"></canvas>
+            </div>
+            <div class="stat-card">
+                <h3>🌍 Library by Country</h3>
+                <canvas id="chart-country"></canvas>
+            </div>
+            <div class="stat-card">
+                <h3>👤 Artists by Gender</h3>
+                <canvas id="chart-gender"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const WARM = {
+            brown:  '#2c1810',
+            gold:   '#8b6914',
+            cream:  '#f5f0e8',
+            tan:    '#c9b99a',
+            rust:   '#b5452a',
+            sage:   '#5a7a5e',
+            slate:  '#4a6b8a',
+            plum:   '#6b3a5e',
+            amber:  '#d4a843',
+            terr:   '#c17f5a',
+        }
+
+        const PALETTE = [
+            WARM.brown, WARM.gold, WARM.rust, WARM.sage,
+            WARM.slate, WARM.plum, WARM.amber, WARM.terr,
+            '#2c5a3a', '#8b4513'
+        ]
+
+        Chart.defaults.font.family = 'Inter, sans-serif'
+        Chart.defaults.color = WARM.brown
+
+        async function loadStats() {
+            const res = await fetch('/stats/data')
+            const d = await res.json()
+
+            // Hero stats
+            document.getElementById('stat-tracks').textContent = d.stats.total_tracks.toLocaleString()
+            document.getElementById('stat-artists').textContent = d.stats.total_artists.toLocaleString()
+            document.getElementById('stat-scrobbles').textContent = d.stats.total_scrobbles.toLocaleString()
+            document.getElementById('stat-instrumental').textContent = d.stats.total_instrumental.toLocaleString()
+
+            // Listening by year
+            new Chart(document.getElementById('chart-years'), {
+                type: 'bar',
+                data: {
+                    labels: d.listening_by_year.map(r => r.year),
+                    datasets: [{
+                        label: 'Scrobbles',
+                        data: d.listening_by_year.map(r => r.plays),
+                        backgroundColor: WARM.gold,
+                        borderRadius: 2,
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: WARM.tan + '44' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            })
+
+            // Top artists — horizontal bar
+            new Chart(document.getElementById('chart-artists'), {
+                type: 'bar',
+                data: {
+                    labels: d.top_artists.map(r => r.artist),
+                    datasets: [{
+                        data: d.top_artists.map(r => r.plays),
+                        backgroundColor: WARM.brown,
+                        borderRadius: 2,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: WARM.tan + '44' } },
+                        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                    }
+                }
+            })
+
+            // Top genres — donut
+            new Chart(document.getElementById('chart-genres'), {
+                type: 'doughnut',
+                data: {
+                    labels: d.top_genres.map(r => r.tag),
+                    datasets: [{
+                        data: d.top_genres.map(r => r.cnt),
+                        backgroundColor: PALETTE,
+                        borderColor: WARM.cream,
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 12 } }
+                    }
+                }
+            })
+
+            // By era — bar
+            new Chart(document.getElementById('chart-era'), {
+                type: 'bar',
+                data: {
+                    labels: d.by_era.map(r => r.era),
+                    datasets: [{
+                        data: d.by_era.map(r => r.cnt),
+                        backgroundColor: WARM.rust,
+                        borderRadius: 2,
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: WARM.tan + '44' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            })
+
+            // By country — horizontal bar
+            new Chart(document.getElementById('chart-country'), {
+                type: 'bar',
+                data: {
+                    labels: d.by_country.map(r => r.country),
+                    datasets: [{
+                        data: d.by_country.map(r => r.cnt),
+                        backgroundColor: WARM.sage,
+                        borderRadius: 2,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: WARM.tan + '44' } },
+                        y: { grid: { display: false } }
+                    }
+                }
+            })
+
+            // Gender — donut
+            new Chart(document.getElementById('chart-gender'), {
+                type: 'doughnut',
+                data: {
+                    labels: d.by_gender.map(r => r.gender),
+                    datasets: [{
+                        data: d.by_gender.map(r => r.cnt),
+                        backgroundColor: [WARM.slate, WARM.rust, WARM.gold, WARM.tan],
+                        borderColor: WARM.cream,
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 12 } }
+                    }
+                }
+            })
+        }
+
+        loadStats()
+    </script>
+</body>
+</html>

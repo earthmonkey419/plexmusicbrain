@@ -243,6 +243,61 @@ def genres():
     conn.close()
     return jsonify([{'tag': r[0], 'count': r[1]} for r in rows])
 
+@app.route('/stats')
+def stats():
+    return render_template('stats.html')
+
+@app.route('/stats/data')
+def stats_data():
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH)
+
+    listening_by_year = conn.execute(
+        "SELECT strftime('%Y', datetime(timestamp, 'unixepoch', 'localtime')) as year, COUNT(*) as plays FROM lastfm_scrobbles GROUP BY year ORDER BY year"
+    ).fetchall()
+
+    top_artists = conn.execute(
+        "SELECT COALESCE(real_artist, artist) as artist, SUM(play_count) as plays FROM tracks WHERE play_count > 0 AND artist IS NOT NULL AND artist != '' AND LOWER(COALESCE(real_artist, artist)) NOT IN ('various artists', 'va') GROUP BY COALESCE(real_artist, artist) ORDER BY plays DESC LIMIT 10"
+    ).fetchall()
+
+    top_genres = conn.execute(
+        "SELECT tag, COUNT(*) as cnt FROM track_tags GROUP BY tag ORDER BY cnt DESC LIMIT 10"
+    ).fetchall()
+
+    by_era = conn.execute(
+        "SELECT era, COUNT(*) as cnt FROM artist_meta WHERE era != 'unknown' AND era IS NOT NULL GROUP BY era ORDER BY era"
+    ).fetchall()
+
+    by_country = conn.execute(
+        "SELECT country, COUNT(*) as cnt FROM artist_meta WHERE country != 'unknown' AND country IS NOT NULL GROUP BY country ORDER BY cnt DESC LIMIT 10"
+    ).fetchall()
+
+    by_gender = conn.execute(
+        "SELECT gender, COUNT(*) as cnt FROM artist_meta WHERE gender IS NOT NULL GROUP BY gender ORDER BY cnt DESC"
+    ).fetchall()
+
+    total_tracks = conn.execute("SELECT COUNT(*) FROM tracks").fetchone()[0]
+    total_artists = conn.execute("SELECT COUNT(DISTINCT COALESCE(real_artist, artist)) FROM tracks WHERE artist IS NOT NULL AND artist != ''").fetchone()[0]
+    total_scrobbles = conn.execute("SELECT COUNT(*) FROM lastfm_scrobbles").fetchone()[0]
+    total_instrumental = conn.execute("SELECT COUNT(*) FROM tracks WHERE is_instrumental = 1").fetchone()[0]
+
+    conn.close()
+
+    return jsonify({
+        'listening_by_year': [{'year': r[0], 'plays': r[1]} for r in listening_by_year],
+        'top_artists':       [{'artist': r[0], 'plays': r[1]} for r in top_artists],
+        'top_genres':        [{'tag': r[0], 'cnt': r[1]} for r in top_genres],
+        'by_era':            [{'era': r[0], 'cnt': r[1]} for r in by_era],
+        'by_country':        [{'country': r[0], 'cnt': r[1]} for r in by_country],
+        'by_gender':         [{'gender': r[0], 'cnt': r[1]} for r in by_gender],
+        'stats': {
+            'total_tracks':       total_tracks,
+            'total_artists':      total_artists,
+            'total_scrobbles':    total_scrobbles,
+            'total_instrumental': total_instrumental,
+        }
+    })
+
 @app.route('/db')
 def db_console():
     return render_template('query.html')
