@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plex Music Brain — DB Query</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .nav { margin-bottom: 1.5rem; }
+        .nav a { color: #e2b96f; text-decoration: none; font-size: 0.9rem; }
+        .nav a:hover { text-decoration: underline; }
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-family: monospace;
+            font-size: 0.9rem;
+            padding: 0.75rem;
+            resize: vertical;
+            margin-bottom: 1rem;
+        }
+        textarea:focus { outline: none; border-color: #e2b96f; }
+        .hints {
+            margin-bottom: 1.5rem;
+        }
+        .hints h3 {
+            color: #e2b96f;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        .hint {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #aaa;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+        }
+        .hint:hover { border-color: #e2b96f; color: #e0e0e0; }
+        .results { margin-top: 1.5rem; }
+        .result-count { color: #aaa; font-size: 0.85rem; margin-bottom: 0.75rem; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        th {
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            background: #0f3460;
+            color: #e2b96f;
+            border-bottom: 1px solid #0f3460;
+        }
+        td {
+            padding: 0.4rem 0.75rem;
+            border-bottom: 1px solid #0f3460;
+            color: #e0e0e0;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        tr:hover td { background: #16213e; }
+        .error { color: #9b2226; font-family: monospace; font-size: 0.85rem; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav"><a href="/admin">← Back to Admin</a></div>
+        <h1>🗄️ DB Query Console</h1>
+        <p style="color:#aaa; margin-bottom:1.5rem;">SELECT queries only. Click a hint to load it.</p>
+
+        <div class="hints">
+            <h3>Example Queries</h3>
+            <div class="hint" onclick="load(this)">SELECT artist, COUNT(*) as tracks FROM tracks GROUP BY artist ORDER BY tracks DESC LIMIT 20</div>
+            <div class="hint" onclick="load(this)">SELECT tag, COUNT(*) as cnt FROM track_tags GROUP BY tag ORDER BY cnt DESC LIMIT 30</div>
+            <div class="hint" onclick="load(this)">SELECT artist, scrobbles, category FROM artist_gaps ORDER BY scrobbles DESC LIMIT 30</div>
+            <div class="hint" onclick="load(this)">SELECT title, artist, play_count FROM tracks WHERE play_count > 0 ORDER BY play_count DESC LIMIT 20</div>
+            <div class="hint" onclick="load(this)">SELECT gender, COUNT(*) as cnt FROM artist_meta GROUP BY gender ORDER BY cnt DESC</div>
+            <div class="hint" onclick="load(this)">SELECT country, COUNT(*) as cnt FROM artist_meta GROUP BY country ORDER BY cnt DESC LIMIT 20</div>
+            <div class="hint" onclick="load(this)">SELECT era, COUNT(*) as cnt FROM artist_meta GROUP BY era ORDER BY cnt DESC</div>
+            <div class="hint" onclick="load(this)">SELECT strftime('%Y', datetime(timestamp, 'unixepoch', 'localtime')) as year, COUNT(*) as plays FROM lastfm_scrobbles GROUP BY year ORDER BY year</div>
+            <div class="hint" onclick="load(this)">SELECT artist, title, real_artist FROM tracks WHERE real_artist IS NOT NULL LIMIT 20</div>
+            <div class="hint" onclick="load(this)">SELECT key, value FROM meta</div>
+            <div class="hint" onclick="load(this)">SELECT album, year, COUNT(*) as tracks FROM tracks WHERE LOWER(artist) = LOWER('African Head Charge') OR LOWER(real_artist) = LOWER('African Head Charge') GROUP BY album ORDER BY year</div>
+            <div class="hint" onclick="load(this)">SELECT DISTINCT COALESCE(real_artist, artist) as artist, COUNT(*) as tracks FROM tracks GROUP BY artist ORDER BY tracks DESC LIMIT 20</div>
+            <div class="hint" onclick="load(this)">SELECT title, COALESCE(real_artist, artist) as artist, album, year, play_count FROM tracks WHERE play_count > 0 ORDER BY play_count DESC LIMIT 20</div>
+        </div>
+
+        <textarea id="sql" placeholder="SELECT ..."></textarea>
+        <button onclick="runQuery()">Run Query</button>
+
+        <div class="results" id="results" style="display:none">
+            <div class="result-count" id="result-count"></div>
+            <div style="overflow-x:auto;">
+                <table id="result-table">
+                    <thead id="result-head"></thead>
+                    <tbody id="result-body"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="error" id="error" style="display:none"></div>
+    </div>
+
+    <script>
+        function load(el) {
+            document.getElementById('sql').value = el.textContent;
+        }
+
+        async function runQuery() {
+            const sql = document.getElementById('sql').value.trim();
+            if (!sql) return;
+
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+
+            const res = await fetch('/query', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({sql})
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                const err = document.getElementById('error');
+                err.textContent = '❌ ' + data.error;
+                err.style.display = 'block';
+                return;
+            }
+
+            // Build table
+            const head = document.getElementById('result-head');
+            const body = document.getElementById('result-body');
+            head.innerHTML = '<tr>' + data.columns.map(c => `<th>${c}</th>`).join('') + '</tr>';
+            body.innerHTML = data.rows.map(row =>
+                '<tr>' + row.map(cell => `<td title="${cell ?? ''}">${cell ?? ''}</td>`).join('') + '</tr>'
+            ).join('');
+
+            document.getElementById('result-count').textContent = `${data.count} rows`;
+            document.getElementById('results').style.display = 'block';
+        }
+
+        // Ctrl+Enter to run
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('sql').addEventListener('keydown', e => {
+                if (e.key === 'Enter' && e.ctrlKey) runQuery();
+            });
+        });
+    </script>
+</body>
+</html>

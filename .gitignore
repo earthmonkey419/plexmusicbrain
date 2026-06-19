@@ -1,0 +1,18 @@
+# Credentials — never commit these
+config.py
+
+# Database — contains personal listening history
+*.db
+*.db-wal
+*.db-shm
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Mac
+.DS_Store

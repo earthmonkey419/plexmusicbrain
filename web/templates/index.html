@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plex Music Brain</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div style="text-align:right; margin-bottom:0.5rem;">
+            <a href="/gaps" style="color:#e2b96f; text-decoration:none; font-size:0.9rem;">📋 Library Gaps</a>
+            &nbsp;&nbsp;
+            <a href="/admin" style="color:#e2b96f; text-decoration:none; font-size:0.9rem;">⚙️ Admin</a>
+        </div>
+        <h1>🎵 Plex Music Brain</h1>
+
+        <div class="prompt-box">
+            <input type="text" id="prompt" placeholder="sunny day driving with the windows down..." autofocus>
+        </div>
+
+        <div class="filters">
+            <label><input type="checkbox" id="unplayed"> Unplayed only</label>
+            <label>Genre
+                <select id="genre">
+                    <option value="">Any</option>
+                </select>
+            </label>
+            <label>From year <input type="number" id="min_year" placeholder="1970"></label>
+            <label>To year <input type="number" id="max_year" placeholder="2024"></label>
+            <label>Limit <input type="number" id="limit" value="30"></label>
+            <label>Max per artist <input type="number" id="max_per_artist" value="3"></label>
+            <label>Min rating
+                <select id="min_rating">
+                    <option value="">Any</option>
+                    <option value="2">1★</option>
+                    <option value="4">2★</option>
+                    <option value="6">3★</option>
+                    <option value="8">4★</option>
+                    <option value="10">5★</option>
+                </select>
+            </label>
+            <label>Gender
+                <select id="gender">
+                    <option value="">Any</option>
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="mixed">Mixed</option>
+                </select>
+            </label>
+            <label>Country
+                <select id="country">
+                    <option value="">Any</option>
+                    <option value="US">US</option>
+                    <option value="UK">UK</option>
+                    <option value="BR">Brazil</option>
+                    <option value="FR">France</option>
+                    <option value="JP">Japan</option>
+                    <option value="AU">Australia</option>
+                    <option value="IE">Ireland</option>
+                    <option value="CA">Canada</option>
+                    <option value="SE">Sweden</option>
+                    <option value="DE">Germany</option>
+                </select>
+            </label>
+            <label>Era
+                <select id="era">
+                    <option value="">Any</option>
+                    <option value="50s">50s</option>
+                    <option value="60s">60s</option>
+                    <option value="70s">70s</option>
+                    <option value="80s">80s</option>
+                    <option value="90s">90s</option>
+                    <option value="00s">00s</option>
+                    <option value="10s">10s</option>
+                    <option value="20s">20s</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="actions">
+            <button id="preview-btn" onclick="preview()">Preview</button>
+        </div>
+
+        <div id="tags-row" class="tags-row" style="display:none"></div>
+
+        <div id="results" style="display:none">
+            <div class="results-header">
+                <span id="result-count"></span>
+                <input type="text" id="playlist-name" placeholder="Playlist name">
+                <button id="create-btn" onclick="createPlaylist()">Create in Plex</button>
+            </div>
+            <ol id="track-list"></ol>
+        </div>
+
+        <div id="toast" class="toast" style="display:none"></div>
+    </div>
+
+    <script>
+        let currentTracks = [];
+
+        async function preview() {
+            const prompt = document.getElementById('prompt').value.trim();
+
+            const btn = document.getElementById('preview-btn');
+            btn.textContent = 'Thinking...';
+            btn.disabled = true;
+
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('tags-row').style.display = 'none';
+
+            const payload = {
+                prompt,
+                unplayed:       document.getElementById('unplayed').checked,
+                genre:          document.getElementById('genre').value,
+                min_year:       document.getElementById('min_year').value,
+                max_year:       document.getElementById('max_year').value,
+                limit:          document.getElementById('limit').value,
+                max_per_artist: document.getElementById('max_per_artist').value,
+                min_rating:     document.getElementById('min_rating').value || null,
+                gender:         document.getElementById('gender').value || null,
+                country:        document.getElementById('country').value || null,
+                era:            document.getElementById('era').value || null,
+            };
+
+            try {
+                const res = await fetch('/preview', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    showToast('Error: ' + data.error, 'error');
+                    return;
+                }
+
+                // Show tags
+                const tagsRow = document.getElementById('tags-row');
+                if (data.tags && data.tags.length > 0) {
+                    tagsRow.innerHTML = data.tags.map(t => `<span class="tag">${t}</span>`).join('');
+                    tagsRow.style.display = 'flex';
+                } else {
+                    tagsRow.style.display = 'none';
+                }
+
+                // Show tracks
+                currentTracks = data.tracks;
+                const list = document.getElementById('track-list');
+                list.innerHTML = data.tracks.map((t, i) => `
+                    <li>
+                        <span class="track-title">${t.artist} — ${t.title}</span>
+                        <span class="track-meta">${t.year || '?'} &bull; ${t.genre || '?'} &bull; ${t.play_count} plays &bull; ${t.match_score} match</span>
+                    </li>
+                `).join('');
+
+                document.getElementById('result-count').textContent = `${data.tracks.length} tracks matched`;
+                document.getElementById('playlist-name').value = prompt || 'My Playlist';
+                document.getElementById('results').style.display = 'block';
+
+            } catch (e) {
+                showToast('Request failed: ' + e, 'error');
+            } finally {
+                btn.textContent = 'Preview';
+                btn.disabled = false;
+            }
+        }
+
+        async function createPlaylist() {
+            const name = document.getElementById('playlist-name').value.trim();
+            if (!name || !currentTracks.length) return;
+
+            const btn = document.getElementById('create-btn');
+            btn.textContent = 'Creating...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name,
+                        rating_keys: currentTracks.map(t => t.rating_key)
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`✅ "${data.name}" created in Plex with ${data.count} tracks!`, 'success');
+                } else {
+                    showToast('Error: ' + data.error, 'error');
+                }
+            } catch (e) {
+                showToast('Request failed: ' + e, 'error');
+            } finally {
+                btn.textContent = 'Create in Plex';
+                btn.disabled = false;
+            }
+        }
+
+        // Load genre tags on page load
+        async function loadGenres() {
+            const res = await fetch('/genres');
+            const data = await res.json();
+            const select = document.getElementById('genre');
+            data.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g.tag;
+                opt.textContent = g.tag + ' (' + g.count + ')';
+                select.appendChild(opt);
+            });
+        }
+
+        // Enter key triggers preview
+        document.addEventListener('DOMContentLoaded', () => {
+            loadGenres();
+            document.getElementById('prompt').addEventListener('keydown', e => {
+                if (e.key === 'Enter') preview();
+            });
+        });
+
+        function showToast(msg, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast ' + type;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 4000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plex Music Brain — Admin</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .admin-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .admin-card {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 1.25rem;
+        }
+        .admin-card h3 {
+            color: #e2b96f;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+        .admin-card p {
+            color: #aaa;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+        .log-box {
+            background: #0a0a1a;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            padding: 0.75rem;
+            height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #aaa;
+            margin-top: 0.75rem;
+            display: none;
+            white-space: pre-wrap;
+        }
+        .log-box.active { display: block; }
+        .status {
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            min-height: 1.2rem;
+        }
+        .status.running { color: #e2b96f; }
+        .status.done    { color: #2d6a4f; }
+        .status.error   { color: #9b2226; }
+        .nav { margin-bottom: 1.5rem; }
+        .nav a { color: #e2b96f; text-decoration: none; font-size: 0.9rem; }
+        .nav a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="/">← Back to Playlist Generator</a>
+            &nbsp;&nbsp;
+            <a href="/db">🗄️ DB Console</a>
+        </div>
+        <h1>⚙️ Admin</h1>
+        <p style="color:#aaa; margin-bottom:1.5rem;">Run sync jobs and maintenance tasks. Each job streams live output.</p>
+
+        <div class="admin-card" style="margin-bottom:1.5rem;">
+            <h3>⚡ Full Sync</h3>
+            <p>Runs the complete pipeline: scan Plex for new files → ingest into DB → sync Last.fm → tag new tracks.</p>
+            <button onclick="runScript('fullsync', this)">Run Full Sync</button>
+            <div class="status" id="status-fullsync"></div>
+            <div class="log-box" id="log-fullsync" style="height:200px;"></div>
+        </div>
+
+        <div class="admin-grid">
+            <div class="admin-card">
+                <h3>🔍 Scan Plex Library</h3>
+                <p>Tells Plex to scan for new or changed files on disk. Plex handles the scan in the background.</p>
+                <button onclick="scanPlex(this)">Scan Now</button>
+                <div class="status" id="status-scan"></div>
+            </div>
+
+            <div class="admin-card">
+                <h3>🔄 Sync Plex Library</h3>
+                <p>Pulls all tracks from Plex into SQLite. Safe to re-run — updates existing records.</p>
+                <button onclick="runScript('ingest', this)">Run Now</button>
+                <div class="status" id="status-ingest"></div>
+                <div class="log-box" id="log-ingest"></div>
+            </div>
+
+            <div class="admin-card">
+                <h3>🎵 Sync Last.fm</h3>
+                <p>Pulls new scrobbles since last sync. Updates play counts and loved tracks.</p>
+                <button onclick="runScript('lastfm', this)">Run Now</button>
+                <div class="status" id="status-lastfm"></div>
+                <div class="log-box" id="log-lastfm"></div>
+            </div>
+
+            <div class="admin-card">
+                <h3>🏷️ Tag New Tracks</h3>
+                <p>AI-tags any untagged tracks via OpenAI gpt-4o-mini. Skips already-tagged tracks.</p>
+                <button onclick="runScript('tagger', this)">Run Now</button>
+                <div class="status" id="status-tagger"></div>
+                <div class="log-box" id="log-tagger"></div>
+            </div>
+
+            <div class="admin-card">
+                <h3>🔗 Refresh Context Playlists</h3>
+                <p>Rebuilds Your Afternoon, Weekend Flow, and Often Together playlists in Plex.</p>
+                <button onclick="runScript('context', this)">Run Now</button>
+                <div class="status" id="status-context"></div>
+                <div class="log-box" id="log-context"></div>
+            </div>
+        <div class="admin-card">
+                <h3>📋 Refresh Gap Analysis</h3>
+                <p>Re-runs gap analysis against current library. Removes acquired artists, adds new ones.</p>
+                <button onclick="runScript('gaps', this)">Run Now</button>
+                <div class="status" id="status-gaps"></div>
+                <div class="log-box" id="log-gaps"></div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <script>
+        async function scanPlex(btn) {
+            const status = document.getElementById('status-scan');
+            btn.disabled = true;
+            status.textContent = '⏳ Triggering scan...';
+            status.className = 'status running';
+            try {
+                const res = await fetch('/scan');
+                const data = await res.json();
+                if (data.success) {
+                    status.textContent = '✅ ' + data.message;
+                    status.className = 'status done';
+                } else {
+                    status.textContent = '❌ ' + data.message;
+                    status.className = 'status error';
+                }
+            } catch(e) {
+                status.textContent = '❌ Request failed';
+                status.className = 'status error';
+            }
+            btn.disabled = false;
+        }
+        function runScript(name, btn) {
+            const log    = document.getElementById('log-' + name);
+            const status = document.getElementById('status-' + name);
+
+            btn.disabled = true;
+            log.textContent = '';
+            log.classList.add('active');
+            status.textContent = '⏳ Running...';
+            status.className = 'status running';
+
+            const es = new EventSource('/run/' + name);
+
+            es.onmessage = function(e) {
+                if (e.data === '__DONE__') {
+                    es.close();
+                    btn.disabled = false;
+                    return;
+                }
+                if (e.data.startsWith('✅')) {
+                    status.textContent = e.data;
+                    status.className = 'status done';
+                } else if (e.data.startsWith('❌')) {
+                    status.textContent = e.data;
+                    status.className = 'status error';
+                }
+                log.textContent += e.data + '\n';
+                log.scrollTop = log.scrollHeight;
+            };
+
+            es.onerror = function() {
+                es.close();
+                btn.disabled = false;
+                status.textContent = '❌ Connection error';
+                status.className = 'status error';
+            };
+        }
+    </script>
+</body>
+</html>

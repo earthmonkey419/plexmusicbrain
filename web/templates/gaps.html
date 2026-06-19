@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plex Music Brain — Library Gaps</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .bucket { margin-bottom: 2rem; }
+        .bucket-header {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: #16213e;
+            border-radius: 8px;
+            border: 1px solid #0f3460;
+            user-select: none;
+        }
+        .bucket-header:hover { border-color: #e2b96f; }
+        .bucket-header h2 { font-size: 1.1rem; color: #e2b96f; margin: 0; flex: 1; }
+        .bucket-header .count { color: #aaa; font-size: 0.85rem; }
+        .bucket-header .chevron { color: #aaa; transition: transform 0.2s; }
+        .bucket-header.open .chevron { transform: rotate(90deg); }
+        .bucket-body { display: none; padding: 0.5rem 0; }
+        .bucket-body.open { display: block; }
+        .artist-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 1rem;
+            border-bottom: 1px solid #0f3460;
+        }
+        .artist-row:hover { background: #16213e; }
+        .artist-name { color: #e0e0e0; }
+        .artist-plays { color: #666; font-size: 0.85rem; }
+        .nav { margin-bottom: 1.5rem; }
+        .nav a { color: #e2b96f; text-decoration: none; font-size: 0.9rem; }
+        .nav a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav"><a href="/">← Back to Playlist Generator</a></div>
+        <h1>🎵 Library Gaps</h1>
+        <p style="color:#aaa; margin-bottom:1.5rem;">Artists you scrobble heavily on Last.fm but don't have in Plex. Minimum 50 scrobbles.</p>
+
+        {% for bucket in buckets %}
+        <div class="bucket">
+            <div class="bucket-header" onclick="toggle(this)">
+                <span class="chevron">▶</span>
+                <h2>{{ bucket.label }}</h2>
+                <span class="count">{{ bucket.artists|length }} artists</span>
+            </div>
+            <div class="bucket-body">
+                {% for artist in bucket.artists %}
+                <div class="artist-row">
+                    <span class="artist-name">{{ artist.artist }}</span>
+                    <span class="artist-plays">{{ artist.scrobbles }}x</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        function toggle(header) {
+            header.classList.toggle('open');
+            header.nextElementSibling.classList.toggle('open');
+        }
+        // Open first bucket by default
+        document.addEventListener('DOMContentLoaded', () => {
+            const first = document.querySelector('.bucket-header');
+            if (first) toggle(first);
+        });
+    </script>
+</body>
+</html>
