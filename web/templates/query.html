@@ -5,76 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plex Music Brain — DB Query</title>
     <link rel="stylesheet" href="/static/style.css">
-    <style>
-        .nav { margin-bottom: 1.5rem; }
-        .nav a { color: #e2b96f; text-decoration: none; font-size: 0.9rem; }
-        .nav a:hover { text-decoration: underline; }
-        textarea {
-            width: 100%;
-            height: 120px;
-            background: #16213e;
-            border: 1px solid #0f3460;
-            border-radius: 8px;
-            color: #e0e0e0;
-            font-family: monospace;
-            font-size: 0.9rem;
-            padding: 0.75rem;
-            resize: vertical;
-            margin-bottom: 1rem;
-        }
-        textarea:focus { outline: none; border-color: #e2b96f; }
-        .hints {
-            margin-bottom: 1.5rem;
-        }
-        .hints h3 {
-            color: #e2b96f;
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-        }
-        .hint {
-            background: #16213e;
-            border: 1px solid #0f3460;
-            border-radius: 6px;
-            padding: 0.5rem 0.75rem;
-            font-family: monospace;
-            font-size: 0.75rem;
-            color: #aaa;
-            margin-bottom: 0.5rem;
-            cursor: pointer;
-        }
-        .hint:hover { border-color: #e2b96f; color: #e0e0e0; }
-        .results { margin-top: 1.5rem; }
-        .result-count { color: #aaa; font-size: 0.85rem; margin-bottom: 0.75rem; }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
-        th {
-            text-align: left;
-            padding: 0.5rem 0.75rem;
-            background: #0f3460;
-            color: #e2b96f;
-            border-bottom: 1px solid #0f3460;
-        }
-        td {
-            padding: 0.4rem 0.75rem;
-            border-bottom: 1px solid #0f3460;
-            color: #e0e0e0;
-            max-width: 300px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        tr:hover td { background: #16213e; }
-        .error { color: #9b2226; font-family: monospace; font-size: 0.85rem; margin-top: 1rem; }
-    </style>
 </head>
 <body>
     <div class="container">
-        <div class="nav"><a href="/admin">← Back to Admin</a></div>
-        <h1>🗄️ DB Query Console</h1>
-        <p style="color:#aaa; margin-bottom:1.5rem;">SELECT queries only. Click a hint to load it.</p>
+        <div class="nav"><a href="/admin">← Back to Back Office</a></div>
+        <h1 class="page-title">🗄️ The Ledger</h1>
+        <p class="page-subtitle">SELECT queries only. Click a hint to load it. Ctrl+Enter to run.</p>
 
         <div class="hints">
             <h3>Example Queries</h3>

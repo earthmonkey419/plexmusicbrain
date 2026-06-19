@@ -5,66 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plex Music Brain — Admin</title>
     <link rel="stylesheet" href="/static/style.css">
-    <style>
-        .admin-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .admin-card {
-            background: #16213e;
-            border: 1px solid #0f3460;
-            border-radius: 8px;
-            padding: 1.25rem;
-        }
-        .admin-card h3 {
-            color: #e2b96f;
-            margin-bottom: 0.5rem;
-            font-size: 1rem;
-        }
-        .admin-card p {
-            color: #aaa;
-            font-size: 0.85rem;
-            margin-bottom: 1rem;
-        }
-        .log-box {
-            background: #0a0a1a;
-            border: 1px solid #0f3460;
-            border-radius: 6px;
-            padding: 0.75rem;
-            height: 150px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.75rem;
-            color: #aaa;
-            margin-top: 0.75rem;
-            display: none;
-            white-space: pre-wrap;
-        }
-        .log-box.active { display: block; }
-        .status {
-            font-size: 0.8rem;
-            margin-top: 0.5rem;
-            min-height: 1.2rem;
-        }
-        .status.running { color: #e2b96f; }
-        .status.done    { color: #2d6a4f; }
-        .status.error   { color: #9b2226; }
-        .nav { margin-bottom: 1.5rem; }
-        .nav a { color: #e2b96f; text-decoration: none; font-size: 0.9rem; }
-        .nav a:hover { text-decoration: underline; }
-    </style>
 </head>
 <body>
     <div class="container">
         <div class="nav">
-            <a href="/">← Back to Playlist Generator</a>
-            &nbsp;&nbsp;
+            <a href="/">← Back to the Stacks</a>
             <a href="/db">🗄️ DB Console</a>
         </div>
-        <h1>⚙️ Admin</h1>
-        <p style="color:#aaa; margin-bottom:1.5rem;">Run sync jobs and maintenance tasks. Each job streams live output.</p>
+        <h1 class="page-title">⚙️ Back Office</h1>
+        <p class="page-subtitle">Sync jobs and maintenance. Each job streams live output. Use direct IP for long-running jobs.</p>
 
         <div class="admin-card" style="margin-bottom:1.5rem;">
             <h3>⚡ Full Sync</h3>
