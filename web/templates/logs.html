@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plex Music Brain — Query Logs</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .log-entry {
+            background: #eeeae0;
+            border: 1px solid #c9b99a;
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+        }
+        .log-entry:hover { border-color: #2c1810; }
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1rem;
+        }
+        .log-prompt {
+            font-family: "Playfair Display", serif;
+            font-size: 1rem;
+            color: #2c1810;
+            flex: 1;
+        }
+        .log-prompt.empty { color: #8b6914; font-style: italic; }
+        .log-meta {
+            font-size: 0.78rem;
+            color: #8b6914;
+            white-space: nowrap;
+        }
+        .log-detail {
+            display: none;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #c9b99a;
+        }
+        .log-detail.open { display: block; }
+        .log-detail.open .log-box { display: block !important; }
+        .log-detail.open pre.log-box { display: block !important; }
+        .log-section { margin-bottom: 0.75rem; }
+        .log-section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #5a3e28;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.3rem;
+        }
+        .log-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+        .log-tag {
+            background: #2c1810;
+            color: #f5f0e8;
+            padding: 0.15rem 0.5rem;
+            border-radius: 2px;
+            font-size: 0.72rem;
+        }
+        .log-box {
+            background: #2c1810;
+            color: #c9b99a;
+            font-family: monospace;
+            font-size: 0.72rem;
+            padding: 0.75rem;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log-stats {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.78rem;
+            color: #5a3e28;
+        }
+        .log-stats span { font-weight: 600; color: #2c1810; }
+        .log-error { color: #9b2226; font-size: 0.82rem; font-family: monospace; }
+        .log-count-good { color: #2d6a4f; font-weight: 600; }
+        .log-count-zero { color: #9b2226; font-weight: 600; }
+        .empty-state { color: #8b6914; font-style: italic; text-align: center; padding: 3rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="/">← Back to the Stacks</a>
+            <a href="/db">🗄️ DB Console</a>
+        </div>
+        <h1 class="page-title">📋 Query Logs</h1>
+        <p class="page-subtitle">Last 100 preview requests. Click any entry to expand.</p>
+
+        {% if not entries %}
+        <div class="empty-state">No queries logged yet. Run a preview to start logging.</div>
+        {% endif %}
+
+        {% for e in entries %}
+        <div class="log-entry" onclick="this.querySelector('.log-detail').classList.toggle('open')">
+            <div class="log-header">
+                <span class="log-prompt {% if not e.prompt %}empty{% endif %}">
+                    {{ e.prompt or '(no prompt — filters only)' }}
+                </span>
+                <span class="log-meta">
+                    {% if e.error %}
+                    ❌ error
+                    {% else %}
+                    <span class="{% if e.result_count == 0 %}log-count-zero{% else %}log-count-good{% endif %}">
+                        {{ e.result_count }} tracks
+                    </span>
+                    · {{ e.duration_ms }}ms
+                    {% endif %}
+                    · {{ e.timestamp[:16] }}
+                </span>
+            </div>
+            <div class="log-detail">
+
+                {% if e.tags %}
+                <div class="log-section">
+                    <div class="log-section-title">Expanded Tags</div>
+                    <div class="log-tags">
+                        {% for tag in e.tags %}
+                        <span class="log-tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if e.prompt_tokens %}
+                <div class="log-section">
+                    <div class="log-section-title">API Stats</div>
+                    <div class="log-stats">
+                        Prompt tokens: <span>{{ e.prompt_tokens }}</span>
+                        &nbsp;·&nbsp;
+                        Completion tokens: <span>{{ e.completion_tokens }}</span>
+                        &nbsp;·&nbsp;
+                        Cost: <span>${{ "%.6f"|format(e.cost_usd) }}</span>
+                        &nbsp;·&nbsp;
+                        Duration: <span>{{ e.duration_ms }}ms</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if e.openai_request %}
+                <div class="log-section">
+                    <div class="log-section-title">Request Sent to OpenAI</div>
+                    <pre class="log-box">{{ e.openai_request | escape }}</pre>
+                </div>
+                {% endif %}
+
+                {% if e.openai_response %}
+                <div class="log-section">
+                    <div class="log-section-title">Raw Response from OpenAI</div>
+                    <pre class="log-box">{{ e.openai_response | escape }}</pre>
+                </div>
+                {% endif %}
+
+                {% if e.filters %}
+                <div class="log-section">
+                    <div class="log-section-title">Filters Applied</div>
+                    <div class="log-box">{{ e.filters | tojson(indent=2) }}</div>
+                </div>
+                {% endif %}
+
+                {% if e.error %}
+                <div class="log-error">❌ {{ e.error }}</div>
+                {% endif %}
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

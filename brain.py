@@ -26,6 +26,10 @@ DEFAULT_FILTERS = {
     "country":        None,
     "era":            None,
     "instrumental":   None,
+    "title_search":   None,
+    "artist_search":  None,
+    "year_search":    None,
+    "intent":         "mood",
 }
 
 # --- Prompt Expansion ---
@@ -42,37 +46,111 @@ def detect_instrumental_intent(prompt):
         return 0
     return None
 
+def classify_prompt(prompt):
+    """
+    Classify a prompt into intent type before processing.
+    Returns dict: {intent, search_term}
+    Intents: mood, title_search, artist_search, year_search
+    """
+    import json
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        messages=[{
+            "role": "user",
+            "content": f"""Classify this music search prompt into exactly one intent:
+
+- "title_search" — user wants songs with specific words in the title (e.g. "songs with ocean in the name", "tracks with love in the title")
+- "artist_search" — user wants songs by a specific artist (e.g. "songs by Miles Davis", "tracks by The Beatles")
+- "year_search" — user wants songs from a specific year or range (e.g. "music from 1975", "songs from the 80s")
+- "mood" — user describes a feeling, vibe, activity, or situation (e.g. "late night jazz", "driving to the airport", "sunny day cooking")
+
+Prompt: "{prompt}"
+
+Respond ONLY with JSON: {{"intent": "mood", "search_term": null}}
+For title_search, artist_search, year_search: extract the search term.
+Example: {{"intent": "title_search", "search_term": "ocean"}}
+Example: {{"intent": "artist_search", "search_term": "Miles Davis"}}
+Example: {{"intent": "year_search", "search_term": "1975"}}
+Example: {{"intent": "mood", "search_term": null}}"""
+        }]
+    )
+    raw = response.choices[0].message.content.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+    return json.loads(raw)
+
+
 def expand_prompt(prompt):
     """
     Send a natural language prompt to OpenAI and get back
     a list of specific music tags/genres/moods to search for.
+    Logs full request/response to query_log table.
     """
+    import json, time, sqlite3
+
+    system_msg = """You are an eclectic music curator who hosts a late-night college radio show. You have deep knowledge of obscure subgenres, world music, jazz, post-punk, electronic, African music, Latin music, and everything in between. When given a theme, vibe, or situation, you think laterally — you find the emotional core and translate it into specific, sometimes unexpected music tags. You never default to the obvious. You favor specificity over breadth."""
+    user_msg = f"""The user wants: "{prompt}"
+
+Identify 2-3 specific vibes that best capture this prompt.
+If the prompt describes a situation or activity, identify the emotional feeling of that moment.
+For each vibe, generate 4-5 closely related music tags (subgenres, moods, styles, tempos, eras).
+Be decisive — commit to specific vibes, do not scatter across unrelated genres.
+Total tags: 8-15, all tightly grouped around your chosen vibes.
+
+Respond ONLY with a flat JSON array of tag strings. No explanation.
+Example: ["sunshine pop", "bossa nova", "upbeat", "60s soul", "feel-good", "tropical", "warmth"]"""
+
+    t_start = time.time()
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.4,
-        messages=[{
-            "role": "user",
-            "content": f"""You are a music expert helping build a playlist.
-The user wants: "{prompt}"
-
-Return 10-15 specific music tags that match this mood, vibe, or description.
-Think in terms of subgenres, moods, styles, tempos, and eras.
-Be specific — avoid broad tags like "rock" or "pop".
-Prefer tags like "sunshine pop", "bossa nova", "lo-fi hip-hop", "balearic", "cosmic disco", etc.
-
-Respond ONLY with a JSON array of strings. No explanation.
-Example: ["sunshine pop", "bossa nova", "upbeat", "60s soul", "feel-good"]"""
-        }]
+        messages=[
+            {"role": "system", "content": system_msg},
+            {"role": "user",   "content": user_msg}
+        ]
     )
+    duration_ms = int((time.time() - t_start) * 1000)
 
     raw = response.choices[0].message.content.strip()
+    raw_response = raw
+
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1]
         raw = raw.rsplit("```", 1)[0]
 
-    import json
     tags = json.loads(raw)
-    return [t.strip().lower() for t in tags if t.strip()]
+    tags = [t.strip().lower() for t in tags if t.strip()]
+
+    # Log to DB
+    try:
+        prompt_tokens     = response.usage.prompt_tokens
+        completion_tokens = response.usage.completion_tokens
+        # gpt-4o-mini pricing: $0.15/1M input, $0.60/1M output
+        cost_usd = (prompt_tokens * 0.00000015) + (completion_tokens * 0.0000006)
+
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("""
+            INSERT INTO query_log
+                (prompt, tags, openai_request, openai_response,
+                 prompt_tokens, completion_tokens, cost_usd, duration_ms)
+            VALUES (?,?,?,?,?,?,?,?)
+        """, (
+            prompt,
+            json.dumps(tags),
+            user_msg,
+            raw_response,
+            prompt_tokens,
+            completion_tokens,
+            round(cost_usd, 6),
+            duration_ms
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as log_err:
+        print(f"Log error: {log_err}")
+
+    return tags
 
 # --- Track Search ---
 
@@ -159,6 +237,24 @@ def search_tracks(tags, filters=None):
     if f.get("instrumental") is not None:
         query += " AND t.is_instrumental = ?"
         params.append(f["instrumental"])
+    if f.get("title_search"):
+        query += " AND LOWER(t.title) LIKE ?"
+        params.append(f"%{f['title_search'].lower()}%")
+    if f.get("artist_search"):
+        query += " AND (LOWER(t.artist) LIKE ? OR LOWER(t.real_artist) LIKE ?)"
+        params.extend([f"%{f['artist_search'].lower()}%", f"%{f['artist_search'].lower()}%"])
+    if f.get("year_search"):
+        import re as _re
+        ys = str(f["year_search"])
+        decade = _re.match(r"(\d{3,4})s?$", ys)
+        if decade:
+            base = int(decade.group(1))
+            if base < 100: base += 1900
+            query += " AND t.year >= ? AND t.year <= ?"
+            params.extend([base, base + 9])
+        else:
+            query += " AND t.year = ?"
+            params.append(int(ys))
 
     query += """
         GROUP BY t.artist, t.title

@@ -537,3 +537,109 @@ h1.page-title {
 
 .results { margin-top: 1.5rem; }
 .error { color: #9b2226; font-family: monospace; font-size: 0.85rem; margin-top: 1rem; }
+
+/* ── Sidebar + Page Wrap ── */
+.page-wrap {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 2rem 1rem 2rem 2rem;
+}
+
+.sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 2rem;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: rgba(44, 24, 16, 0.92);
+    border-radius: 6px;
+    border: 1px solid #4a2c1a;
+    box-shadow: 0 4px 16px rgba(44,24,16,0.2);
+    z-index: 10;
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0.75rem 0.75rem;
+    font-family: 'Playfair Display', serif;
+    font-size: 0.9rem;
+    color: #e2b96f;
+    border-bottom: 1px solid #4a2c1a;
+    flex-shrink: 0;
+}
+
+.playlist-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 0.25rem 0;
+}
+
+.playlist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(74, 44, 26, 0.4);
+    text-decoration: none;
+    gap: 0.5rem;
+}
+
+.playlist-item:hover { background: rgba(74, 44, 26, 0.6); }
+
+.playlist-name {
+    color: #f5f0e8;
+    font-size: 0.78rem;
+    line-height: 1.3;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playlist-count {
+    color: #8b6914;
+    font-size: 0.68rem;
+    flex-shrink: 0;
+}
+
+.playlist-loading {
+    color: #8b6914;
+    font-size: 0.78rem;
+    padding: 1rem 0.75rem;
+    font-style: italic;
+}
+
+.page-wrap .container {
+    flex: 1;
+    min-width: 0;
+    max-width: 860px;
+    margin: 0;
+}
+
+@media (max-width: 600px) {
+    .sidebar { display: none; }
+}
+
+/* Mobile note */
+.mobile-note {
+    display: none;
+    background: #2c1810;
+    color: #c9b99a;
+    font-size: 0.78rem;
+    padding: 0.6rem 1rem;
+    text-align: center;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 600px) {
+    .mobile-note { display: block; }
+}

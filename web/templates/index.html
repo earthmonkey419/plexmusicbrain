@@ -7,7 +7,22 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+<div class="page-wrap">
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span>🎵 Playlists</span>
+            <select id="sidebar-sort" onchange="sortPlaylists(this.value)" style="font-size:0.7rem;border:none;background:transparent;color:#c9b99a;cursor:pointer;">
+                <option value="recent">Recent</option>
+                <option value="name">A-Z</option>
+                <option value="tracks">Tracks</option>
+            </select>
+        </div>
+        <div id="playlist-list" class="playlist-list">
+            <div class="playlist-loading">Loading...</div>
+        </div>
+    </div>
     <div class="container">
+        <div class="mobile-note">🖥️ Plex Music Brain is optimized for desktop. Some features may not work well on mobile.</div>
         <div class="site-header">
             <h1>🎵 Plex Music Brain</h1>
             <div class="tagline">Dig into your stacks.</div>
@@ -17,6 +32,8 @@
             <a href="/stats">📊 The Collection</a>
             <a href="/admin">⚙️ Admin</a>
             <a href="/db">🗄️ DB Console</a>
+            <a href="/logs">📋 Logs</a>
+            <a href="/update">🔄 Update</a>
         </div>
 
         <div class="prompt-box">
@@ -35,7 +52,7 @@
             <label>From year <input type="number" id="min_year" placeholder="1970"></label>
             <label>To year <input type="number" id="max_year" placeholder="2024"></label>
             <label>Limit <input type="number" id="limit" value="30"></label>
-            <label>Max per artist <input type="number" id="max_per_artist" value="3"></label>
+            <label>Tracks per artist <input type="number" id="max_per_artist" value="1"></label>
             <label>Min rating
                 <select id="min_rating">
                     <option value="">Any</option>
@@ -144,9 +161,18 @@
                     return;
                 }
 
-                // Show tags
+                // Show tags or intent info
                 const tagsRow = document.getElementById('tags-row');
-                if (data.tags && data.tags.length > 0) {
+                if (data.intent && data.intent !== 'mood') {
+                    const intentLabels = {
+                        'title_search': '🔍 Title search',
+                        'artist_search': '🎤 Artist search',
+                        'year_search': '📅 Year search',
+                    };
+                    const label = intentLabels[data.intent] || data.intent;
+                    tagsRow.innerHTML = `<span class="tag">${label}: "${data.search_term}"</span>`;
+                    tagsRow.style.display = 'flex';
+                } else if (data.tags && data.tags.length > 0) {
                     tagsRow.innerHTML = data.tags.map(t => `<span class="tag">${t}</span>`).join('');
                     tagsRow.style.display = 'flex';
                 } else {
@@ -237,5 +263,46 @@
             setTimeout(() => toast.style.display = 'none', 4000);
         }
     </script>
+</div><!-- page-wrap -->
+<script>
+const PLEX_MACHINE_ID = '7bb3b3a55e7261db369f9512ebf7182fcbb4e595';
+let allPlaylists = [];
+
+async function loadPlaylists() {
+    try {
+        const res = await fetch('/playlists');
+        allPlaylists = await res.json();
+        allPlaylists.sort((a,b) => b.addedAt - a.addedAt);
+        renderPlaylists(allPlaylists);
+    } catch(e) {
+        document.getElementById('playlist-list').innerHTML =
+            '<div class="playlist-loading">Failed to load.</div>';
+    }
+}
+
+function renderPlaylists(list) {
+    const el = document.getElementById('playlist-list');
+    if (!list.length) {
+        el.innerHTML = '<div class="playlist-loading">No playlists found.</div>';
+        return;
+    }
+    el.innerHTML = list.map(p => {
+        const url = `https://app.plex.tv/desktop/#!/server/${PLEX_MACHINE_ID}/playlist?key=%2Fplaylists%2F${p.key}&context=source%3Acontent.playlists.music~2~4&shuffle=1`;
+        return `<a class="playlist-item" href="${url}" target="_blank" title="${p.title}">
+            <span class="playlist-name">${p.title}</span>
+            <span class="playlist-count">${p.trackCount}</span>
+        </a>`;
+    }).join('');
+}
+
+function sortPlaylists(by) {
+    let sorted = [...allPlaylists];
+    if (by === 'name')   sorted.sort((a,b) => a.title.localeCompare(b.title));
+    if (by === 'tracks') sorted.sort((a,b) => b.trackCount - a.trackCount);
+    if (by === 'recent') sorted.sort((a,b) => b.addedAt - a.addedAt);
+    renderPlaylists(sorted);
+}
+
+loadPlaylists();
+</script>
 </body>
-</html>

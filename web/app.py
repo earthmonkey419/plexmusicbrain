@@ -8,8 +8,8 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from flask import Flask, render_template, request, jsonify
-from brain import expand_prompt, search_tracks, create_playlist, PlexServer, PLEX_URL, PLEX_TOKEN, MUSIC_LIB, detect_instrumental_intent
-from config import DB_PATH, BASE_DIR
+from brain import expand_prompt, classify_prompt, search_tracks, create_playlist, PlexServer, PLEX_URL, PLEX_TOKEN, MUSIC_LIB, detect_instrumental_intent
+from config import DB_PATH, BASE_DIR, IS_MASTER
 
 app = Flask(__name__)
 
@@ -23,7 +23,19 @@ def preview():
     prompt = data.get('prompt', '').strip()
 
     try:
-        tags = expand_prompt(prompt) if prompt else []
+        tags = []
+        intent = 'mood'
+        search_term = None
+
+        if prompt:
+            classification = classify_prompt(prompt)
+            intent = classification.get('intent', 'mood')
+            search_term = classification.get('search_term')
+
+            if intent == 'mood':
+                tags = expand_prompt(prompt)
+            # title/artist/year handled via filters below
+
         filters = {
             'unplayed':       data.get('unplayed', False),
             'genre':          data.get('genre') or None,
@@ -38,10 +50,14 @@ def preview():
             'country':        data.get('country') or None,
             'era':            data.get('era') or None,
             'instrumental':   1 if data.get('instrumental') else (detect_instrumental_intent(prompt) if prompt else None),
+            'title_search':   search_term if intent == 'title_search' else None,
+            'artist_search':  search_term if intent == 'artist_search' else None,
+            'year_search':    search_term if intent == 'year_search' else None,
+            'intent':         intent,
 
         }
         tracks = search_tracks(tags, filters)
-        return jsonify({'tags': tags, 'tracks': tracks})
+        return jsonify({'tags': tags, 'tracks': tracks, 'intent': intent, 'search_term': search_term})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -229,6 +245,25 @@ def scan():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@app.route('/playlists')
+def playlists():
+    import urllib.request, json
+    try:
+        req = urllib.request.Request(
+            f"{PLEX_URL}/playlists?X-Plex-Token={PLEX_TOKEN}&playlistType=audio",
+            headers={'Accept': 'application/json'}
+        )
+        data = json.loads(urllib.request.urlopen(req).read())
+        items = data['MediaContainer'].get('Metadata', [])
+        return jsonify([{
+            'title':      p['title'],
+            'key':        p['ratingKey'],
+            'trackCount': p.get('leafCount', 0),
+            'addedAt':    p.get('addedAt', 0),
+        } for p in items])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/genres')
 def genres():
     import sqlite3
@@ -242,6 +277,79 @@ def genres():
     ''').fetchall()
     conn.close()
     return jsonify([{'tag': r[0], 'count': r[1]} for r in rows])
+
+@app.route('/update')
+def update():
+    import subprocess
+    import os
+
+    # Get local git info
+    git_info = {'is_git_repo': False}
+    try:
+        commit = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=BASE_DIR, stderr=subprocess.DEVNULL
+        ).decode().strip()
+        short = commit[:7]
+        date = subprocess.check_output(
+            ['git', 'log', '-1', '--format=%ci'],
+            cwd=BASE_DIR, stderr=subprocess.DEVNULL
+        ).decode().strip()[:10]
+        message = subprocess.check_output(
+            ['git', 'log', '-1', '--format=%s'],
+            cwd=BASE_DIR, stderr=subprocess.DEVNULL
+        ).decode().strip()
+        branch = subprocess.check_output(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            cwd=BASE_DIR, stderr=subprocess.DEVNULL
+        ).decode().strip()
+        git_info = {
+            'is_git_repo': True,
+            'commit':  short,
+            'date':    date,
+            'message': message,
+            'branch':  branch,
+            'path':    BASE_DIR,
+        }
+    except:
+        git_info = {
+            'is_git_repo': False,
+            'path': BASE_DIR,
+        }
+
+    return render_template('update.html', git=git_info, is_master=IS_MASTER)
+
+@app.route('/logs')
+def logs():
+    import sqlite3, json
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute("""
+        SELECT id, timestamp, prompt, tags, filters, result_count,
+               duration_ms, error, openai_request, openai_response,
+               prompt_tokens, completion_tokens, cost_usd
+        FROM query_log
+        ORDER BY id DESC
+        LIMIT 100
+    """).fetchall()
+    conn.close()
+    entries = []
+    for row in rows:
+        entries.append({
+            'id':                row[0],
+            'timestamp':         row[1],
+            'prompt':            row[2] or '',
+            'tags':              json.loads(row[3] or '[]'),
+            'filters':           json.loads(row[4] or '{}'),
+            'result_count':      row[5] or 0,
+            'duration_ms':       row[6] or 0,
+            'error':             row[7],
+            'openai_request':    row[8] or '',
+            'openai_response':   row[9] or '',
+            'prompt_tokens':     row[10] or 0,
+            'completion_tokens': row[11] or 0,
+            'cost_usd':          row[12] or 0,
+        })
+    return render_template('logs.html', entries=entries)
 
 @app.route('/stats')
 def stats():
