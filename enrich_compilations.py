@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - Compilation Track Enrichment
+MusicMind for Plex - Compilation Track Enrichment
 Reads TPE1 (track artist) from ID3 tags for Various Artists tracks
 and stores real artist in tracks.real_artist field.
 """
@@ -40,7 +40,7 @@ def read_real_artist(path):
     return None
 
 def main():
-    print("Plex Music Brain - Compilation Enrichment")
+    print("MusicMind for Plex - Compilation Enrichment")
     print("=" * 50)
 
     conn = sqlite3.connect(DB_PATH, timeout=30)

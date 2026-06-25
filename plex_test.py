@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - Connection Test v2
+MusicMind for Plex - Connection Test v2
 Walks artist -> album -> tracks to get fully loaded metadata.
 """
 

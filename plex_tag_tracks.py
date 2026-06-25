@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - AI Track Tagger
+MusicMind for Plex - AI Track Tagger
 Sends track metadata to OpenAI gpt-4o-mini and stores rich genre/mood tags.
 """
 
@@ -83,7 +83,7 @@ def tag_batch(conn, batch):
     conn.commit()
 
 def main():
-    print("Plex Music Brain - AI Track Tagger")
+    print("MusicMind for Plex - AI Track Tagger")
     print("=" * 40)
 
     conn = sqlite3.connect(DB_PATH, timeout=30)

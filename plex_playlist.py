@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - Playlist Generator
+MusicMind for Plex - Playlist Generator
 Generates playlists from natural language prompts + rule flags.
 """
 
@@ -90,7 +90,7 @@ def create_plex_playlist(plex, name, rating_keys):
     print(f"\nPlaylist '{playlist.title}' created in Plex with {len(tracks)} tracks.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Plex Music Brain - Playlist Generator")
+    parser = argparse.ArgumentParser(description="MusicMind for Plex - Playlist Generator")
     parser.add_argument("prompt", help="Natural language mood/vibe prompt")
     parser.add_argument("--unplayed", action="store_true", help="Only unplayed tracks")
     parser.add_argument("--limit", type=int, default=30, help="Max tracks (default 30)")
@@ -106,7 +106,7 @@ def main():
     playlist_name = args.name or args.prompt
     keywords = [w for w in args.prompt.lower().split() if len(w) > 2]
 
-    print(f"Plex Music Brain - Playlist Generator")
+    print(f"MusicMind for Plex - Playlist Generator")
     print("=" * 40)
     print(f"Prompt   : {args.prompt}")
     print(f"Keywords : {keywords}")

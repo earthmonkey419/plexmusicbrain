@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - Listening Context Analysis
+MusicMind for Plex - Listening Context Analysis
 Builds context-aware playlists from Last.fm scrobble history:
   1. Your Afternoon  - what you play 1-5pm
   2. Weekend Flow    - what you play Saturday/Sunday
@@ -178,7 +178,7 @@ def create_plex_playlist(name, rating_keys):
     return len(tracks)
 
 def main():
-    print("Plex Music Brain - Listening Context Analysis")
+    print("MusicMind for Plex - Listening Context Analysis")
     print("=" * 50)
 
     conn = sqlite3.connect(DB_PATH, timeout=30)

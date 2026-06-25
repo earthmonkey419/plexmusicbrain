@@ -1,4 +1,4 @@
-# Plex Music Brain - Configuration
+# MusicMind for Plex - Configuration
 # Copy this file to config.py and fill in your values.
 # Never commit config.py to git — it contains your credentials.
 

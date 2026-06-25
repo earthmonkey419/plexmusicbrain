@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - Write AI Genres to Plex
+MusicMind for Plex - Write AI Genres to Plex
 Snapshots current genres, then appends top AI tags to each track in Plex.
 Run with --test first to preview, then --run to apply.
 """
@@ -168,7 +168,7 @@ def revert_mode(conn, plex):
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else '--test'
 
-    print("Plex Music Brain - Write AI Genres to Plex")
+    print("MusicMind for Plex - Write AI Genres to Plex")
     print("=" * 50)
     print(f"Mode: {mode}\n")
 

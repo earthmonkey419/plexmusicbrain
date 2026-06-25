@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - Last.fm Sync
+MusicMind for Plex - Last.fm Sync
 Pulls full scrobble history and loved tracks from Last.fm.
 Matches to local tracks table by artist+title.
 First run: pulls everything (~111K scrobbles, 10-15 min)
@@ -273,7 +273,7 @@ def print_stats(conn):
 
 def main():
     import urllib.parse
-    print("Plex Music Brain - Last.fm Sync")
+    print("MusicMind for Plex - Last.fm Sync")
     print("=" * 40)
 
     conn = sqlite3.connect(DB_PATH, timeout=30)

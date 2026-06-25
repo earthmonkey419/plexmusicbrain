@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - Last.fm Gap Analysis
+MusicMind for Plex - Last.fm Gap Analysis
 Finds artists you scrobble heavily but don't have in Plex.
 Categorizes them via OpenAI into actionable buckets.
 """
@@ -162,7 +162,7 @@ def print_report(conn):
             print(f"  {scrobbles:5d}x  {artist}")
 
 def main():
-    print("Plex Music Brain - Last.fm Gap Analysis")
+    print("MusicMind for Plex - Last.fm Gap Analysis")
     print("=" * 40)
 
     conn = sqlite3.connect(DB_PATH, timeout=30)

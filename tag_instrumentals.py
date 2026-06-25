@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - Instrumental Tagger
+MusicMind for Plex - Instrumental Tagger
 Uses OpenAI to determine if tracks are instrumental (no lead vocals).
 Skips tracks already tagged via title heuristics.
 """
@@ -56,7 +56,7 @@ Tracks:
     return json.loads(raw)
 
 def main():
-    print("Plex Music Brain - Instrumental Tagger")
+    print("MusicMind for Plex - Instrumental Tagger")
     print("=" * 40)
 
     conn = sqlite3.connect(DB_PATH, timeout=30)

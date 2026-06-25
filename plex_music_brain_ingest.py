@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - Library Ingest
+MusicMind for Plex - Library Ingest
 Pulls all tracks from Plex Music library and stores in SQLite.
 Run nightly to keep the database fresh.
 """
@@ -106,7 +106,7 @@ def ingest(conn, plex):
     print(f"Database: {DB_PATH}")
 
 def main():
-    print("Plex Music Brain - Library Ingest")
+    print("MusicMind for Plex - Library Ingest")
     print("=" * 40)
     print(f"Connecting to Plex...")
     plex = PlexServer(PLEX_URL, PLEX_TOKEN)

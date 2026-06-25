@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - Core Engine
+MusicMind for Plex - Core Engine
 Shared logic for prompt expansion, track search, and playlist creation.
 """
 

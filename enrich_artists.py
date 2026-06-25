@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plex Music Brain - Artist Metadata Enrichment
+MusicMind for Plex - Artist Metadata Enrichment
 Enriches artist records with gender, country, era, and group type via OpenAI.
 """
 
@@ -67,7 +67,7 @@ Artists:
     return json.loads(raw)
 
 def main():
-    print("Plex Music Brain - Artist Metadata Enrichment")
+    print("MusicMind for Plex - Artist Metadata Enrichment")
     print("=" * 50)
 
     conn = sqlite3.connect(DB_PATH, timeout=30)
